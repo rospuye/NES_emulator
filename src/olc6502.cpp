@@ -58,6 +58,82 @@ void olc6502::clock()
     cycles--;
 }
 
+void olc6502::reset()
+{
+	// a programmable address is read form hard coded location 0xFFFC
+	// which is subsequently set to the program counter
+	addr_abs = 0xFFFC;
+	uint16_t lo = read(addr_abs + 0);
+	uint16_t hi = read(addr_abs + 1);
+	pc = (hi << 8) | lo;
+
+	// reset internal registers and internal helper variables
+	a = 0;
+	x = 0;
+	y = 0;
+	stkp = 0xFD;
+	status = 0x00 | U;
+
+	addr_rel = 0x0000;
+	addr_abs = 0x0000;
+	fetched = 0x00;
+
+	// reset function takes time
+	cycles = 8;
+}
+
+void olc6502::irq()
+{
+	// if interrupts are allowed
+	if (GetFlag(I) == 0)
+	{
+		// push the program counter to the stack
+		// it's 16-bits so it takes two pushes
+		write(0x0100 + stkp, (pc >> 8) & 0x00FF);
+		stkp--;
+		write(0x0100 + stkp, pc & 0x00FF);
+		stkp--;
+
+		// push the status register to the stack
+		SetFlag(B, 0);
+		SetFlag(U, 1);
+		SetFlag(I, 1);
+		write(0x0100 + stkp, status);
+		stkp--;
+
+		// read new program counter location from fixed address (like in reset())
+		addr_abs = 0xFFFE;
+		uint16_t lo = read(addr_abs + 0);
+		uint16_t hi = read(addr_abs + 1);
+		pc = (hi << 8) | lo;
+
+		// irq function takes time
+		cycles = 7;
+	}
+}
+
+// the same as irq but nothing can stop it
+void olc6502::nmi()
+{
+	write(0x0100 + stkp, (pc >> 8) & 0x00FF);
+	stkp--;
+	write(0x0100 + stkp, pc & 0x00FF);
+	stkp--;
+
+	SetFlag(B, 0);
+	SetFlag(U, 1);
+	SetFlag(I, 1);
+	write(0x0100 + stkp, status);
+	stkp--;
+
+	addr_abs = 0xFFFA;
+	uint16_t lo = read(addr_abs + 0);
+	uint16_t hi = read(addr_abs + 1);
+	pc = (hi << 8) | lo;
+
+	cycles = 8;
+}
+
 // returns the value of a specific bit of the status register
 uint8_t olc6502::GetFlag(FLAGS6502 f)
 {
@@ -262,6 +338,297 @@ uint8_t olc6502::fetch()
 
 ///////////////////////////////////////////////////////////////////////////////
 // instructions
+
+// 1) fetch the data
+// 2) perform calculation
+// 3) store the result in desired place
+// 4) set flags in status register
+// 5) return if instruction has potential to require additional clock cycle
 ///////////////////////////////////////////////////////////////////////////////
+
+
+// BITWISE LOGIC AND
+// A = A & M
+uint8_t olc6502::AND()
+{
+	fetch();
+	a = a & fetched;
+	SetFlag(Z, a == 0x00); // set zero flag if the result of the AND was zero
+	SetFlag(N, a & 0x80); // set negative flag if the result of the AND was negative (left-most bit = 1)
+	return 1;
+}
+
+// BRANCH IF CARRY SET
+// carry = carry bit of the status register
+// if(C == 1) pc = address
+uint8_t olc6502::BCS()
+{
+	if (GetFlag(C) == 1) // if the carry bit is set
+	{
+		cycles++; // all branch instructions require an additional clock cycle
+		addr_abs = pc + addr_rel; // compute the new address to branch to
+
+		// if the branch needs to cross a page boundary, it requires a second additional clock cycle
+		if ((addr_abs & 0xFF00) != (pc & 0xFF00))
+			cycles++;
+
+		pc = addr_abs;
+	}
+	return 0;
+}
+
+// BRANCH IF CARRY CLEAR
+// if(C == 0) pc = address 
+uint8_t olc6502::BCC()
+{
+	if (GetFlag(C) == 0)
+	{
+		cycles++;
+		addr_abs = pc + addr_rel;
+		
+		if((addr_abs & 0xFF00) != (pc & 0xFF00))
+			cycles++;
+		
+		pc = addr_abs;
+	}
+	return 0;
+}
+
+// BRANCH IF EQUAL
+// if(Z == 1) pc = address
+uint8_t olc6502::BEQ()
+{
+	if (GetFlag(Z) == 1)
+	{
+		cycles++;
+		addr_abs = pc + addr_rel;
+
+		if ((addr_abs & 0xFF00) != (pc & 0xFF00))
+			cycles++;
+
+		pc = addr_abs;
+	}
+	return 0;
+}
+
+// BRANCH IF NOT EQUAL
+// if(Z == 0) pc = address
+uint8_t olc6502::BNE()
+{
+	if (GetFlag(Z) == 0)
+	{
+		cycles++;
+		addr_abs = pc + addr_rel;
+
+		if ((addr_abs & 0xFF00) != (pc & 0xFF00))
+			cycles++;
+
+		pc = addr_abs;
+	}
+	return 0;
+}
+
+// BRANCH IF POSITIVE
+// if(N == 0) pc = address
+uint8_t olc6502::BPL()
+{
+	if (GetFlag(N) == 0)
+	{
+		cycles++;
+		addr_abs = pc + addr_rel;
+
+		if ((addr_abs & 0xFF00) != (pc & 0xFF00))
+			cycles++;
+
+		pc = addr_abs;
+	}
+	return 0;
+}
+
+// BRANCH IF NEGATIVE
+// if(N == 1) pc = address
+uint8_t olc6502::BMI()
+{
+	if (GetFlag(N) == 1)
+	{
+		cycles++;
+		addr_abs = pc + addr_rel;
+
+		if ((addr_abs & 0xFF00) != (pc & 0xFF00))
+			cycles++;
+
+		pc = addr_abs;
+	}
+	return 0;
+}
+
+// BRANCH IF OVERFLOW SET
+// if(V == 1) pc = address
+uint8_t olc6502::BVS()
+{
+	if (GetFlag(V) == 1)
+	{
+		cycles++;
+		addr_abs = pc + addr_rel;
+
+		if ((addr_abs & 0xFF00) != (pc & 0xFF00))
+			cycles++;
+
+		pc = addr_abs;
+	}
+	return 0;
+}
+
+// BRANCH IF OVERFLOW CLEAR
+// if(V == 0) pc = address
+uint8_t olc6502::BVC()
+{
+	if (GetFlag(V) == 0)
+	{
+		cycles++;
+		addr_abs = pc + addr_rel;
+
+		if ((addr_abs & 0xFF00) != (pc & 0xFF00))
+			cycles++;
+
+		pc = addr_abs;
+	}
+	return 0;
+}
+
+// ARITHMETIC SHIFT LEFT
+// A = C <- (A << 1) <- 0
+uint8_t olc6502::ASL()
+{
+	fetch();
+	temp = (uint16_t)fetched << 1;
+	SetFlag(C, (temp & 0xFF00) > 0); // set if there was a carry-out from the most significant bit
+	SetFlag(Z, (temp & 0x00FF) == 0x00);
+	SetFlag(N, temp & 0x80);
+	
+	// if IMPLIED addressing mode, the result is written on the accumulator
+	if (lookup[opcode].addrmode == &olc6502::IMP)
+		a = temp & 0x00FF;
+	// else, the result is written to the effective address
+	else
+		write(addr_abs, temp & 0x00FF);
+	return 0;
+}
+
+// TEST BITS IN MEMORY WITH ACCUMULATOR
+// A & M
+uint8_t olc6502::BIT()
+{
+	fetch();
+	temp = a & fetched;
+	SetFlag(Z, (temp & 0x00FF) == 0x00);
+	SetFlag(N, fetched & (1 << 7)); // set negative flag based on the 7th bit of fetched value (sign bit)
+	SetFlag(V, fetched & (1 << 6)); // set overflow flag based on the 6th bit of fetched value
+	return 0;
+}
+
+// ADD WITH CARRY IN
+// A = A + M + C
+// add a value to the accumulator and a carry bit
+// supports negativity/positivity (range -128 to +127 instead of 0 to 255) and signed overflow
+// given the msb of each component, where R is RESULT:
+// A  M  R | V | A^R | A^M |~(A^M) | 
+// 0  0  0 | 0 |  0  |  0  |   1   |
+// 0  0  1 | 1 |  1  |  0  |   1   |
+// 0  1  0 | 0 |  0  |  1  |   0   |
+// 0  1  1 | 0 |  1  |  1  |   0   |  so V = ~(A^M) & (A^R)
+// 1  0  0 | 0 |  1  |  1  |   0   |
+// 1  0  1 | 0 |  0  |  1  |   0   |
+// 1  1  0 | 1 |  1  |  0  |   1   |
+// 1  1  1 | 0 |  0  |  0  |   1   |
+uint8_t olc6502::ADC()
+{
+	// grab the data that we are adding to the accumulator
+	fetch();
+	// add is performed in 16-bit domain for emulation to capture any
+	// carry bit, which will exist in bit 8 of the 16-bit word
+	temp = (uint16_t)a + (uint16_t)fetched + (uint16_t)GetFlag(C);
+	// carry flag out exists in the high byte bit 0
+	SetFlag(C, temp > 255);
+	// zero flag is set if the result is 0
+	SetFlag(Z, (temp & 0x00FF) == 0);
+	// signed overflow flag is set based on all that up there! :D
+	SetFlag(V, (~((uint16_t)a ^ (uint16_t)fetched) & ((uint16_t)a ^ (uint16_t)temp)) & 0x0080);
+	// negative flag is set to the most significant bit of the result
+	SetFlag(N, temp & 0x80);
+	// load the result into the accumulator (8-bit)
+	a = temp & 0x00FF;
+	// has the potential to require an additional clock cycle
+	return 1;
+}
+
+// SUBTRACTION WITH BORROW IN
+// A = A - M - (1 - C)
+// that means that A = A + -(M+1) + C
+// if M = 5 and we want -5, we use the 2s complement (invert and add 1):
+//  	5 = 0000 0101
+// 	   -5 = 1111 1010 + 0000 0001
+// so -M = ^M + 1 (^, or XOR, inverts the bits)
+// thus, we conclude: -(M+1) = -M - 1 = (^M + 1) - 1 = ^M
+// and so A = A + ^M + C
+uint8_t olc6502::SBC()
+{
+	fetch();
+	
+	// operating in 16-bit domain to capture carry out
+	// invert the bottom 8 bits with bitwise xor (computing ^M)
+	uint16_t value = ((uint16_t)fetched) ^ 0x00FF;
+	
+	// exactly the same as addition from here
+	temp = (uint16_t)a + value + (uint16_t)GetFlag(C);
+	SetFlag(C, temp & 0xFF00);
+	SetFlag(Z, ((temp & 0x00FF) == 0));
+	SetFlag(V, (temp ^ (uint16_t)a) & (temp ^ value) & 0x0080);
+	SetFlag(N, temp & 0x0080);
+	a = temp & 0x00FF;
+	return 1;
+}
+
+// PUSH ACCUMULATOR TO STACK
+// A -> stack
+uint8_t olc6502::PHA()
+{
+	// 6502 has hardcoded region in memory for the stack
+	// stkp is a relative value we add to this hardcoded start address of the stack
+	write(0x0100 + stkp, a);
+	// to push something to the stack, we decrement the stack pointer
+	// to pop something off the stack, we increment it (see PLA)
+	stkp--;
+	return 0;
+}
+
+// POP ACCUMULATOR OFF THE STACK
+// A <- stack
+uint8_t olc6502::PLA()
+{
+	stkp++;
+	a = read(0x0100 + stkp);
+	SetFlag(Z, a == 0x00);
+	SetFlag(N, a & 0x80);
+	return 0;
+}
+
+// RETURN FROM INTERRUPT
+// restores the state of the cpu to how it was before the interrupt occurred
+uint8_t olc6502::RTI()
+{
+	// read the status register from the stack
+	stkp++;
+	status = read(0x0100 + stkp);
+	status &= ~B;
+	status &= ~U;
+
+	// read the previous program counter from the stack
+	stkp++;
+	pc = (uint16_t)read(0x0100 + stkp);
+	stkp++;
+	pc |= (uint16_t)read(0x0100 + stkp) << 8;
+	return 0;
+}
 
 

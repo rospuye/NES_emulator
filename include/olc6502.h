@@ -31,6 +31,42 @@ public:
 
     void ConnectBus(Bus *n) { bus = n; }
 
+    // signals
+    void clock();
+    void reset();
+    void irq(); // interrupt request, can be ignored depending on whether the "interruptEnable" flag is set or not
+    void nmi(); // non-maskable interrupt request, can never be disabled
+
+private:
+    // convenience functions to access status register
+    uint8_t GetFlag(FLAGS6502 f);
+    void SetFlag(FLAGS6502 f, bool v);
+
+    // internal helper functions, to facilitate the emulation
+    uint8_t fetch();            // instructions can use data, we want to fetch that data from the appropriate source
+    uint8_t fetched = 0x00;     // place to store fetched data
+    uint16_t addr_abs = 0x0000; // depending on the addressing mode, we might from diff memory location; that location is on this variable
+    uint16_t addr_rel = 0x00;   // branch instructions can only jump a certain distance from the location where the instruction was called - they jump to a relative address
+    uint8_t opcode = 0x00;      // opcode i'm currently working with
+    uint8_t cycles = 0;         // no. of cycles left for the duration of this instruction
+    uint16_t temp = 0x0000;
+
+    Bus *bus = nullptr;
+    uint8_t read(uint16_t a);
+    void write(uint16_t a, uint8_t d);
+
+    uint8_t fetch();
+
+    struct INSTRUCTION
+    {
+        std::string name;                               // for the disassembler, which reverse-engineers the compiled code into something human-readable
+        uint8_t(olc6502::*operate)(void) = nullptr;     // function pointer to the operation to be performed
+        uint8_t(olc6502::*addrmode)(void) = nullptr;    // function pointer to the address mode
+        uint8_t cycles = 0;                             // no. of clock cycles the instruction requires to execute
+    };
+
+    std::vector<INSTRUCTION> lookup; // vector of instructions
+
     // addressing modes
     uint8_t IMP();  uint8_t IMM();
     uint8_t ZP0();  uint8_t ZPX();
@@ -39,7 +75,7 @@ public:
     uint8_t ABY();  uint8_t IND();
     uint8_t IZX();  uint8_t IZY();
 
-    // opmodes
+    // opcodes
     uint8_t ADC();  uint8_t AND();  uint8_t ASL();  uint8_t BCC();
     uint8_t BCS();  uint8_t BEQ();  uint8_t BIT();  uint8_t BMI();
     uint8_t BNE();  uint8_t BPL();  uint8_t BRK();  uint8_t BVC();
@@ -55,38 +91,6 @@ public:
     uint8_t STX();  uint8_t STY();  uint8_t TAX();  uint8_t TAY();
     uint8_t TSX();  uint8_t TXA();  uint8_t TXS();  uint8_t TYA();
 
-    uint8_t XXX(); // for illegal opcodes
-
-    // signals
-    void clock();
-    void reset();
-    void irq(); // interrupt request, can be ignored depending on whether the "interruptEnable" flag is set or not
-    void nmi(); // non-maskable interrupt request, can never be disabled
-
-    // internal helper functions, to facilitate the emulation
-    uint8_t fetch();            // instructions can use data, we want to fetch that data from the appropriate source
-    uint8_t fetched = 0x00;     // place to store fetched data
-    uint16_t addr_abs = 0x0000; // depending on the addressing mode, we might from diff memory location; that location is on this variable
-    uint16_t addr_rel = 0x00;   // branch instructions can only jump a certain distance from the location where the instruction was called - they jump to a relative address
-    uint8_t opcode = 0x00;      // opcode i'm currently working with
-    uint8_t cycles = 0;         // no. of cycles left for the duration of this instruction
-
-private:
-    Bus *bus = nullptr;
-    uint8_t read(uint16_t a);
-    void write(uint16_t a, uint8_t d);
-
-    // convenience functions to access status register
-    uint8_t GetFlag(FLAGS6502 f);
-    void SetFlag(FLAGS6502 f, bool v);
-
-    struct INSTRUCTION
-    {
-        std::string name;                               // for the disassembler, which reverse-engineers the compiled code into something human-readable
-        uint8_t(olc6502::*operate)(void) = nullptr;     // function pointer to the operation to be performed
-        uint8_t(olc6502::*addrmode)(void) = nullptr;    // function pointer to the address mode
-        uint8_t cycles = 0;                             // no. of clock cycles the instruction requires to execute
-    };
-
-    std::vector<INSTRUCTION> lookup; // vector of instructions
+    // to capture invalid opcodes
+    uint8_t XXX();
 };
