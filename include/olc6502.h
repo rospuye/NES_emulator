@@ -2,6 +2,12 @@
 
 #include <string>
 #include <vector>
+#include <map>
+
+//#define LOGMODE // uncomment this to enable logging
+#ifdef LOGMODE
+#include <stdio.h>
+#endif
 
 class Bus;
 
@@ -37,6 +43,13 @@ public:
     void irq(); // interrupt request, can be ignored depending on whether the "interruptEnable" flag is set or not
     void nmi(); // non-maskable interrupt request, can never be disabled
 
+    // indicates the current instruction has completed by returning true
+    // this is a utility function to enable "step-by-step" execution, without manually clocking every cycle
+	bool complete();
+
+    // creates a map of strings, with keys equivalent to instruction start locations in memory, for the specified address range
+	std::map<uint16_t, std::string> disassemble(uint16_t nStart, uint16_t nStop);
+
 private:
     // convenience functions to access status register
     uint8_t GetFlag(FLAGS6502 f);
@@ -54,8 +67,6 @@ private:
     Bus *bus = nullptr;
     uint8_t read(uint16_t a);
     void write(uint16_t a, uint8_t d);
-
-    uint8_t fetch();
 
     struct INSTRUCTION
     {
@@ -93,4 +104,9 @@ private:
 
     // to capture invalid opcodes
     uint8_t XXX();
+
+#ifdef LOGMODE
+private:
+	FILE* logfile = nullptr;
+#endif
 };

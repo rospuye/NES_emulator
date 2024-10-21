@@ -2,14 +2,13 @@
 
 #include <array>
 #include <cstdint>
-#include "olc6502.h"
+#include "../include/olc6502.h"
 
 class Bus {
 
 public:
     Bus();
     ~Bus();
-
 
 public:
     olc6502 cpu;
