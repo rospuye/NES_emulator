@@ -2,7 +2,7 @@
 
 #include <array>
 #include <cstdint>
-#include "../include/olc6502.h"
+#include "olc6502.h"
 
 class Bus {
 
