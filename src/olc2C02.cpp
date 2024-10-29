@@ -1,5 +1,7 @@
 #include <cstdint>
+#include <memory>
 #include "../include/olc2C02.h"
+#include "../include/Cartridge.h"
 
 olc2C02::olc2C02() {}
 
@@ -66,4 +68,9 @@ void olc2C02::ppuWrite(uint16_t addr, uint8_t data) // TODO: doing nothing for n
 {
     // masking the address in case the PPU tries to write to its bus in a location beyond its addressable range
     addr &= 0x3FFF;
+}
+
+void olc2C02::connectCartridge(const std::shared_ptr<Cartridge>& cartridge)
+{
+    this->cart = cartridge;
 }

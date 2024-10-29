@@ -28,3 +28,15 @@ uint8_t Bus::cpuRead(uint16_t addr, bool bReadOnly)
         data = ppu.cpuRead(addr & 0x0007, bReadOnly);
     return data;
 }
+
+void Bus::reset()
+{
+    cpu.reset();
+    nSystemClockCounter = 0;
+}
+
+void Bus::insertCartridge(const std::shared_ptr<Cartridge>& cartridge)
+{
+    this->cart = cartridge;
+    ppu.connectCartridge(cartridge);
+}
