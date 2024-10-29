@@ -25,7 +25,11 @@ Testing files for the 6502 CPU were provided by [OneLoneCoder](https://oneloneco
 ### Dependencies
 
 - **C++17 or newer**: The codebase is written in C++ with modern standards.
-- **CMake (optional)**: For build configuration.
+- **X11**: For windowing and graphical interface management.
+- **OpenGL**: For graphics rendering.
+- **POSIX**: For multi-threading support.
+- **PNG**: For handling PNG images.
+- **Filesystem**: For file system operations.
 
 ### Usage
 
