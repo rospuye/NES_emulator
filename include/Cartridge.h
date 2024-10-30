@@ -1,12 +1,21 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 class Cartridge
 {
 public:
-    Cartridge();
+    Cartridge(const std::string& sFileName);
     ~Cartridge();
+
+private:
+    std::vector<uint8_t> vPRGMemory; // virtual program memory
+    std::vector<uint8_t> vCHRMemory; // virtual character memory
+
+    uint8_t nMapperID = 0; // which mapper we are using
+    uint8_t nPRGBanks = 0; // how many banks of vPRG memory there are
+    uint8_t nCHRBanks = 0; // how many banks of vCHR memory there are
 
 public:
     // talk to the main bus

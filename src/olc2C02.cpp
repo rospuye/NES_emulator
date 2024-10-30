@@ -61,6 +61,12 @@ uint8_t olc2C02::ppuRead(uint16_t addr, bool rdonly = false) // TODO: doing noth
 {
     uint8_t data = 0x00; // placeholder value
     addr &= 0x3FF;
+
+    if (cart->ppuRead(addr, data))
+    {
+        // TODO
+    }
+
     return data;
 }
 
@@ -68,6 +74,11 @@ void olc2C02::ppuWrite(uint16_t addr, uint8_t data) // TODO: doing nothing for n
 {
     // masking the address in case the PPU tries to write to its bus in a location beyond its addressable range
     addr &= 0x3FFF;
+
+    if (cart->ppuWrite(addr, data))
+    {
+        // TODO
+    }
 }
 
 void olc2C02::connectCartridge(const std::shared_ptr<Cartridge>& cartridge)
