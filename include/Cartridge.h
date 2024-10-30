@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <vector>
+#include <memory>
+#include "../include/Mapper_000.h"
 
 class Cartridge
 {
@@ -16,6 +18,8 @@ private:
     uint8_t nMapperID = 0; // which mapper we are using
     uint8_t nPRGBanks = 0; // how many banks of vPRG memory there are
     uint8_t nCHRBanks = 0; // how many banks of vCHR memory there are
+
+    std::shared_ptr<Mapper> pMapper;
 
 public:
     // talk to the main bus
