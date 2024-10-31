@@ -86,10 +86,6 @@ bool Cartridge::ImageValid()
 
 bool Cartridge::cpuRead(uint16_t addr, uint8_t &data)
 {
-    // if (pMapper == nullptr) {
-    //     return false;
-    // }
-
     uint32_t mapped_addr = 0;
     if (pMapper->cpuMapRead(addr, mapped_addr))
     {
@@ -102,10 +98,6 @@ bool Cartridge::cpuRead(uint16_t addr, uint8_t &data)
 
 bool Cartridge::cpuWrite(uint16_t addr, uint8_t data)
 {
-    // if (pMapper == nullptr) {
-    //     return false;
-    // }
-
     uint32_t mapped_addr = 0;
     if (pMapper->cpuMapWrite(addr, mapped_addr))
     {
