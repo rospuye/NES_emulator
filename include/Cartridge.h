@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 #include <memory>
+#include <string>
 #include "../include/Mapper_000.h"
 
 class Cartridge
@@ -11,7 +12,20 @@ public:
     Cartridge(const std::string& sFileName);
     ~Cartridge();
 
+public:
+	bool ImageValid();
+
+	enum MIRROR
+	{
+		HORIZONTAL,
+		VERTICAL,
+		ONESCREEN_LO,
+		ONESCREEN_HI,
+	} mirror = HORIZONTAL;
+
 private:
+    bool bImageValid = false;
+
     std::vector<uint8_t> vPRGMemory; // virtual program memory
     std::vector<uint8_t> vCHRMemory; // virtual character memory
 

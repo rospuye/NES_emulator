@@ -17,8 +17,7 @@ public:
     olc6502 cpu;
     olc2C02 ppu;
     std::shared_ptr<Cartridge> cart;
-    
-    std::array<uint8_t, 2048> cpuRam; // fake ram
+    uint8_t cpuRam[2048];
 
 public:
     void cpuWrite(uint16_t addr, uint8_t data);

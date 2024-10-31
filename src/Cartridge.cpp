@@ -1,6 +1,9 @@
 #include "../include/Cartridge.h"
 #include <string>
 #include <fstream>
+#include <iostream>
+
+using namespace std;
 
 Cartridge::Cartridge(const std::string& sFileName)
 {
@@ -18,6 +21,8 @@ Cartridge::Cartridge(const std::string& sFileName)
         char unused[5];
     } header;
 
+    bImageValid = false;
+
     std::ifstream ifs;
     ifs.open(sFileName, std::ifstream::binary);
     if (ifs.is_open())
@@ -31,6 +36,7 @@ Cartridge::Cartridge(const std::string& sFileName)
 
         // extract which mapper the ROM is using
         nMapperID = ((header.mapper2 >> 4) << 4) | (header.mapper1 >> 4);
+        mirror = (header.mapper1 & 0x01) ? VERTICAL : HORIZONTAL;
 
         // discover file format (there are 3 iNES file formats)
         uint8_t nFileType = 1;
@@ -62,18 +68,28 @@ Cartridge::Cartridge(const std::string& sFileName)
         switch (nMapperID)
         {
         case 0:
-            pMapper = std::make_shared<Mapper_000>(nPRGBanks, nCHRBanks); break;
+            pMapper = std::make_shared<Mapper_000>(nPRGBanks, nCHRBanks);
             break;
         }
 
+        bImageValid = true;
         ifs.close();
     }
 }
 
 Cartridge::~Cartridge() {}
 
+bool Cartridge::ImageValid()
+{
+	return bImageValid;
+}
+
 bool Cartridge::cpuRead(uint16_t addr, uint8_t &data)
 {
+    // if (pMapper == nullptr) {
+    //     return false;
+    // }
+
     uint32_t mapped_addr = 0;
     if (pMapper->cpuMapRead(addr, mapped_addr))
     {
@@ -86,6 +102,10 @@ bool Cartridge::cpuRead(uint16_t addr, uint8_t &data)
 
 bool Cartridge::cpuWrite(uint16_t addr, uint8_t data)
 {
+    // if (pMapper == nullptr) {
+    //     return false;
+    // }
+
     uint32_t mapped_addr = 0;
     if (pMapper->cpuMapWrite(addr, mapped_addr))
     {

@@ -3,7 +3,7 @@
 Bus::Bus()
 {
     // clear ram contents, just in case!
-    for (auto &i : cpuRam) i = 0x00;
+    // for (auto &i : cpuRam) i = 0x00;
 
     // connect cpu to communication bus
     cpu.ConnectBus(this);
@@ -52,3 +52,12 @@ void Bus::insertCartridge(const std::shared_ptr<Cartridge>& cartridge)
     this->cart = cartridge;
     ppu.connectCartridge(cartridge);
 }
+
+void Bus::clock() {
+    ppu.clock();
+    if (nSystemClockCounter % 3 == 0)
+    {
+        cpu.clock();
+    }
+    nSystemClockCounter++;
+};
